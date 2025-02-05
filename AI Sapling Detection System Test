@@ -1,0 +1,72 @@
+import requests
+import json
+import os
+import webbrowser
+from fpdf import FPDF
+from datetime import datetime
+
+# API Request to Sapling AI Detection
+response = requests.post(
+    "https://api.sapling.ai/api/v1/aidetect",
+    json={
+        "key": "OAQ05U3RV5PLO6QIL69ORSEW01X01WDO",
+        #text is a Chat-GPT generated entry
+        "text": """Title: The Role of AI in Modern Education:
+        In recent years, artificial intelligence has transformed the way students learn and teachers instruct. 
+        AI-driven tutoring systems provide personalized feedback, enhancing student engagement and understanding. 
+        These intelligent systems analyze patterns in student performance, adapting content to fit individual needs.
+        AI in education represents a paradigm shift, offering scalable and adaptive learning experiences that transcend traditional classroom limitations. 
+        Through natural language processing and machine learning, AI-powered tutors can assess comprehension levels, ensuring that each student receives tailored support."""
+    }
+)
+
+# turn the text into JSON format
+response_data = response.json()
+
+# find the AI score and specific sentence AI scores
+general_percentage = response_data.get("score", 0)
+individ_percentage = response_data.get("sentence_scores", [])
+
+# Generate a new filename using the current timestamp to avoid overwriting
+time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+pdf_filename = f"sapling_detection_report_{time}.pdf"
+
+# initialize the pdf document
+pdf = FPDF()
+pdf.set_auto_page_break(auto = True, margin = 15)
+pdf.add_page()
+
+# establish the title 
+pdf.set_font("Arial", "B", 16)
+pdf.cell(200, 10, "AI Detection System Report", ln=True, align="C")
+pdf.ln(10)
+
+# establish the general probability score of the text
+pdf.set_font("Arial", "B", 12)
+pdf.cell(200, 10, f"Overall AI Probability Score: {general_percentage:.6f}", ln=True)
+pdf.ln(5)
+
+# establish table titles
+pdf.set_fill_color(200, 200, 200)  # make a grey background for individual headers
+pdf.set_font("Arial", "B", 12)
+pdf.cell(150, 10, "Sentence", border = 1, fill = True)
+pdf.cell(40, 10, "AI Score", border = 1, fill = True, align = "C")
+pdf.ln()
+
+# establish the table content 
+pdf.set_font("Arial", size=10)
+for item in individ_percentage:
+    sentence = item.get("sentence", "").strip()
+    score = item.get("score", 0.0)
+
+    # add a new sentence
+    pdf.cell(150, 10, sentence[:75] + ("..." if len(sentence) > 75 else ""), border=1)  # cut the long sentences towards the end
+    pdf.cell(40, 10, f"{score:.6f}", border=1, align="C")
+    pdf.ln()
+
+# save the pdf
+pdf.output(pdf_filename)
+print(f"PDF generated successfully: {pdf_filename}")
+
+# open the PDF a browser
+webbrowser.open(os.path.abspath(pdf_filename))
